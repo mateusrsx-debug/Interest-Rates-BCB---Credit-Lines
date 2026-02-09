@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BCB Credit Interest Rates Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-dark:#F5F6F8;--card-bg:#FFFFFF;--card-bg-hover:#F0F1F3;--card-border:#D8DBE0;
+  --text-primary:#1A1D23;--text-secondary:#5A6270;--text-muted:#8C919A;
+  --accent:#EC7000;--accent-hover:#FF8C1A;--accent-light:rgba(236,112,0,0.10);
+  --grid:#E8EAED;--sidebar-w:300px;
+}
+html{font-size:14px}
+body{font-family:'Inter',sans-serif;background:var(--bg-dark);color:var(--text-primary);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px}
+
+.sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;background:var(--card-bg);border-right:1px solid var(--card-border);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sidebar-header{padding:0 16px;border-bottom:1px solid #333;flex-shrink:0;background:#0D0D0D;display:flex;flex-direction:column;justify-content:center;height:72px}
+.sidebar-header h1{font-size:14px;font-weight:700;line-height:1.3;color:#FFFFFF}
+.sidebar-header .sub{font-size:9.5px;color:#999;margin-top:3px;letter-spacing:.3px;text-transform:uppercase}
+.ss{padding:12px 16px 8px;flex-shrink:0}
+.ss.grow{flex:1;min-height:0;overflow-y:auto;padding-bottom:4px}
+.sl{font-size:9.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:10.5px;font-weight:500;padding:3px 9px;border-radius:10px;border:1px solid var(--card-border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap}
+.chip:hover{border-color:var(--accent);color:var(--text-primary)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+.mg{margin-bottom:4px}.mg-h{font-size:10px;font-weight:600;color:var(--text-secondary);padding:5px 0 3px;cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none}.mg-h:hover{color:var(--text-primary)}.mg-h .a{font-size:8px;transition:transform .15s;display:inline-block;width:12px}.mg-h .a.o{transform:rotate(90deg)}.mg-b{padding-left:2px;display:none}.mg-b.o{display:block}.mi{display:flex;align-items:center;gap:6px;padding:2.5px 4px;border-radius:4px;cursor:pointer;font-size:10.5px;color:var(--text-secondary)}.mi:hover{background:var(--card-bg-hover);color:var(--text-primary)}.mi input{accent-color:var(--accent);width:12px;height:12px;cursor:pointer;flex-shrink:0}.mi.on{color:var(--accent);font-weight:500}.mc{font-size:9px;color:var(--text-muted);margin-left:auto}.ma{display:flex;gap:8px;margin-bottom:6px}.ma button{font-size:9.5px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;padding:0;text-decoration:underline;text-underline-offset:2px}
+
+.dr{display:flex;gap:6px}.dr input{flex:1;min-width:0;background:#FFFFFF;border:1px solid var(--card-border);color:var(--text-primary);padding:5px 6px;border-radius:5px;font-family:'Inter',sans-serif;font-size:10.5px}.dr input:focus{outline:none;border-color:var(--accent)}
+
+.rt{display:flex;border:1px solid var(--card-border);border-radius:5px;overflow:hidden}.rb{flex:1;padding:5px 0;text-align:center;font-size:10.5px;font-weight:500;background:transparent;color:var(--text-secondary);border:none;cursor:pointer;font-family:'Inter',sans-serif}.rb.on{background:var(--accent);color:#fff;font-weight:600}
+
+.fb{width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:11.5px;font-weight:600;cursor:pointer;letter-spacing:.2px}.fb:hover{background:var(--accent-hover)}.fb:disabled{opacity:.5;cursor:not-allowed}
+.sf{flex-shrink:0;padding:10px 16px;border-top:1px solid var(--card-border);font-size:8.5px;color:var(--text-muted);line-height:1.5}
+
+.main{margin-left:var(--sidebar-w);min-height:100vh}
+.hero{padding:0 28px;border-bottom:1px solid #333;background:#0D0D0D;height:72px;display:flex;align-items:center}.hero h1{font-size:20px;font-weight:700;color:#FFFFFF}.hero p{font-size:11.5px;color:#999;margin-top:3px}
+
+.banner{padding:9px 28px;font-size:11.5px;display:none;align-items:center;gap:8px}.banner.err{background:rgba(231,76,60,.12);color:#E74C3C;border-bottom:1px solid rgba(231,76,60,.25)}.banner.ok{background:rgba(0,196,154,.10);color:#00C49A;border-bottom:1px solid rgba(0,196,154,.2)}.banner.vis{display:flex}
+
+.sr{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 28px}.sc{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:12px 14px}.sc:hover{border-color:var(--accent)}.sc .v{font-size:20px;font-weight:700;color:var(--accent)}.sc .l{font-size:9.5px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;font-weight:500}
+
+.tb{display:flex;padding:0 28px;border-bottom:1px solid var(--card-border)}.tbtn{padding:9px 18px;font-size:11.5px;font-weight:500;color:var(--text-secondary);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:'Inter',sans-serif}.tbtn:hover{color:var(--text-primary)}.tbtn.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}.pane{display:none;padding:18px 28px 40px}.pane.on{display:block}
+
+.shdr{font-size:14px;font-weight:600;padding-bottom:7px;border-bottom:2px solid var(--accent);display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.shdr+.shdr,.cg+.shdr{margin-top:22px}.xbtn{font-size:9.5px;font-weight:600;background:var(--accent-light);color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif}.xbtn:hover{background:var(--accent);color:#fff}
+
+.cg{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.cc{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;overflow:hidden;resize:both;min-width:240px;min-height:200px;position:relative;display:flex;flex-direction:column;height:300px}
+.cc:hover{border-color:var(--accent)}
+.cc::after{content:'';position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,var(--card-border) 50%,var(--card-border) 65%,transparent 65%,transparent 75%,var(--card-border) 75%,var(--card-border) 90%,transparent 90%);border-radius:0 0 8px 0;opacity:.5;z-index:1}
+.cc:hover::after{opacity:1;background:linear-gradient(135deg,transparent 50%,var(--accent) 50%,var(--accent) 65%,transparent 65%,transparent 75%,var(--accent) 75%,var(--accent) 90%,transparent 90%)}
+.cch{display:flex;justify-content:space-between;align-items:center;padding:8px 10px 2px;flex-shrink:0}.cch .t{font-size:11px;font-weight:600}.cch .xb{font-size:9px;background:none;border:1px solid var(--card-border);color:var(--text-secondary);padding:2px 6px;border-radius:3px;cursor:pointer;font-family:'Inter',sans-serif}.cch .xb:hover{border-color:var(--accent);color:var(--accent)}
+.cd{flex:1;min-height:0;padding:0 4px 4px;position:relative}
+.cd>div{width:100%!important;height:100%!important}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}.empty .ic{font-size:32px;margin-bottom:10px}.empty .ms{font-size:12px;line-height:1.6}
+
+.rsrch{width:100%;max-width:400px;background:#FFFFFF;border:1px solid var(--card-border);color:var(--text-primary);padding:7px 10px;border-radius:5px;font-family:'Inter',sans-serif;font-size:11.5px}.rsrch:focus{outline:none;border-color:var(--accent)}.rtw{max-height:550px;overflow:auto;border:1px solid var(--card-border);border-radius:6px}table.rtbl{width:100%;border-collapse:collapse;font-size:10.5px}table.rtbl th{position:sticky;top:0;background:var(--card-bg);color:var(--text-secondary);font-weight:600;text-transform:uppercase;font-size:9.5px;letter-spacing:.3px;padding:7px 8px;text-align:left;border-bottom:1px solid var(--card-border)}table.rtbl td{padding:5px 8px;border-bottom:1px solid var(--grid)}table.rtbl tr:hover td{background:var(--card-bg-hover)}
+
+.lo{position:fixed;inset:0;background:rgba(245,246,248,.92);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}.lo.vis{display:flex}.sp{width:32px;height:32px;border:3px solid var(--card-border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.lo .lm{font-size:11.5px;color:var(--text-secondary)}
+
+.dt{position:fixed;bottom:8px;right:8px;font-size:9px;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-muted);padding:3px 8px;border-radius:3px;cursor:pointer;z-index:200;font-family:'Inter',sans-serif}.dc{position:fixed;bottom:30px;right:8px;width:500px;max-height:320px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:6px;overflow:auto;z-index:200;display:none;padding:8px;font-size:9.5px;font-family:'Menlo','Consolas',monospace;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;word-break:break-all}.dc.vis{display:block}
+
+.mt{display:none;position:fixed;top:8px;left:8px;z-index:200;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:14px}
+@media(max-width:768px){.sidebar{transform:translateX(-100%);transition:transform .25s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.mt{display:block}.sr{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.cg{grid-template-columns:1fr!important}}
+</style>
+</head>
+<body>
+<button class="mt" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="lo" id="lo"><div class="sp"></div><div class="lm" id="lm">Loading…</div></div>
+
+<aside class="sidebar">
+  <div class="sidebar-header"><h1>BCB Credit Rates</h1><div class="sub">Interest Rate Dashboard</div></div>
+  <div class="ss"><label class="sl">Institutions</label><div class="chips" id="bk"></div></div>
+  <div class="ss grow"><label class="sl">Credit Lines</label><div class="ma"><button onclick="modNone()">Clear all</button><button onclick="modDef()">Defaults</button></div><div id="ml"></div></div>
+  <div class="ss"><label class="sl">Date Range</label><div class="dr"><input type="date" id="df"><input type="date" id="dt"></div></div>
+  <div class="ss"><label class="sl">Rate Display</label><div class="rt"><button class="rb" data-r="a" onclick="setR('a')">% p.a.</button><button class="rb on" data-r="m" onclick="setR('m')">% p.m.</button></div></div>
+  <div class="ss"><button class="fb" id="fb" onclick="doFetch()">Fetch Data</button></div>
+  <div class="sf">Source: BCB OData API (Daily, weekly avg)<br>Client-side processing</div>
+</aside>
+
+<div class="main">
+  <div class="hero" style="justify-content:space-between">
+    <div><h1>Credit Interest Rates — Brazil</h1><p>Weekly evolution by financial institution · Source: BCB OData API</p></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <img src="data:image/png;base64,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" alt="Itaú" style="height:40px;width:auto">
+      <div style="line-height:1.2"><span style="font-size:13px;font-weight:700;color:#FFFFFF">Itaú BBA</span><br><span style="font-size:9px;color:#999">Equity Research</span></div>
+    </div>
+  </div>
+  <div class="banner err" id="eb"><span id="em"></span></div>
+  <div class="banner ok" id="sb"><span id="sm"></span></div>
+  <div class="sr">
+    <div class="sc"><div class="v" id="s1">–</div><div class="l">Banks Matched</div></div>
+    <div class="sc"><div class="v" id="s2">–</div><div class="l">Credit Lines</div></div>
+    <div class="sc"><div class="v" id="s3">–</div><div class="l">Data Points</div></div>
+    <div class="sc"><div class="v" id="s4">–</div><div class="l">Weeks Loaded</div></div>
+  </div>
+  <div class="tb">
+    <button class="tbtn on" data-t="ch" onclick="stab('ch')">Charts</button>
+    <button class="tbtn" data-t="rw" onclick="stab('rw')">Raw Data</button>
+  </div>
+  <div class="pane on" id="p-ch">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:9.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px">Columns</span>
+      <div class="rt" style="width:auto">
+        <button class="rb" data-c="1" onclick="setCols(1)" style="padding:3px 10px;font-size:10px">1</button>
+        <button class="rb on" data-c="2" onclick="setCols(2)" style="padding:3px 10px;font-size:10px">2</button>
+        <button class="rb" data-c="3" onclick="setCols(3)" style="padding:3px 10px;font-size:10px">3</button>
+      </div>
+      <span style="font-size:9px;color:var(--text-muted);margin-left:auto">Drag any chart corner to resize</span>
+    </div>
+    <div id="cc"><div class="empty"><div class="ic">📊</div><div class="ms">Loading data…</div></div></div>
+  </div>
+  <div class="pane" id="p-rw">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <input class="rsrch" id="rs" placeholder="Search…" oninput="fRaw()">
+      <button class="xbtn" onclick="xRawAll()">📥 Export Raw</button>
+    </div>
+    <div class="rtw" id="rw"></div>
+  </div>
+</div>
+<button class="dt" onclick="document.getElementById('dc').classList.toggle('vis')">Debug</button>
+<pre class="dc" id="dc"></pre>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG — verified against live API 2026-02-08
+// ═══════════════════════════════════════════
+const API = 'https://olinda.bcb.gov.br/olinda/servico/taxaJuros/versao/v2/odata/TaxasJurosDiariaPorInicioPeriodo';
+const API_MONTHLY = 'https://olinda.bcb.gov.br/olinda/servico/taxaJuros/versao/v2/odata/TaxasJurosMensalPorMes';
+const PS = 10000, MAX_PG = 15;
+
+// Bank aliases — verified against BCB file "taxascredito.xls"
+const BANKS = {
+  'Bradesco':  ['BCO BRADESCO','BRADESCO'],
+  'Itaú':      ['ITAÚ UNIBANCO','ITAÚ','ITAU UNIBANCO'],
+  'BB':        ['BCO DO BRASIL','BANCO DO BRASIL'],
+  'Santander': ['SANTANDER'],
+  'Caixa':     ['CAIXA ECONOMICA','CAIXA ECONÔMICA'],
+  'Nubank':    ['NU PAGAMENTOS','NU FINANCEIRA'],
+  'BTG':       ['BTG PACTUAL'],
+  'Inter':     ['BCO INTER','BANCO INTER'],
+  'C6':        ['BCO C6','C6 S.A.'],
+  'Safra':     ['BCO SAFRA','SAFRA CFI','BCO. J.SAFRA'],
+  'Agibank':   ['AGIBANK'],
+  'PAN':       ['BCO PAN','BANCO PAN','PAN FINAN'],
+  'BMG':       ['BCO BMG'],
+  'BV':        ['BCO BV','BCO VOTORANTIM','BV FINANCEIRA'],
+  'Daycoval':  ['BCO DAYCOVAL'],
+  'XP':        ['BCO XP'],
+  'Banrisul':  ['BCO DO ESTADO DO RS','BANRISUL'],
+  'ABC':       ['BCO ABC BRASIL'],
+  'Mercantil': ['BCO MERCANTIL DO BRASIL','MERCANTIL DO BRASIL'],
+  'PicPay':    ['PICPAY BANK','PICPAY'],
+  'Crefisa':   ['BCO CREFISA','CREFISA'],
+  'Facta':     ['FACTA S.A'],
+  'Neon':      ['NEON FINANCEIRA','NEON'],
+};
+const DEF_BANKS = ['Bradesco','Itaú','BB','Santander'];
+// Fixed bank colors per request
+const BANK_COLORS = {
+  'Nubank':'#7B2D8E','Bradesco':'#CC092F','Santander':'#1A1A1A','Itaú':'#EC7000',
+  'BB':'#C8A200','Caixa':'#003399','BTG':'#5BC0EB','Inter':'#F4A460',
+  // Distinct colors for remaining banks — no pink, all clearly different
+  'C6':'#00897B',     // teal
+  'Safra':'#4A148C',  // deep purple
+  'Agibank':'#E53935', // bright red-orange
+  'PAN':'#6D4C41',    // brown
+  'BMG':'#00ACC1',    // cyan
+  'BV':'#558B2F',     // olive green
+  'Daycoval':'#FF8F00',// amber
+  'XP':'#37474F',     // dark grey-blue
+  'Banrisul':'#1B5E20',// dark green
+  'ABC':'#AD1457',    // magenta
+  'Mercantil':'#D84315',// deep orange
+  'PicPay':'#21B352', // green (PicPay brand)
+  'Crefisa':'#5D4037',// dark brown
+  'Facta':'#0277BD',  // medium blue
+  'Neon':'#00BFA5',   // neon teal-green
+};
+const FALLBACK_COLORS = ['#795548','#009688','#FF6F00','#283593','#827717','#4E342E','#00695C','#BF360C'];
+
+// ═══════════════════════════════════════════
+// MODALITY MAPS — keys are NORMALIZED forms
+// Verified against live API modality strings
+// ═══════════════════════════════════════════
+const MPF = {
+  // Credit Cards & Overdraft
+  'cartão de crédito rotativo total':'CC Revolving (Total)',
+  'cartão de crédito rotativo regular':'CC Revolving (Regular)',
+  'cartão de crédito rotativo não regular':'CC Revolving (Irregular)',
+  'cartão de crédito parcelado':'CC Installment w/ Interest',
+  'cheque especial':'Overdraft (Cheque Especial)',
+  // Payroll (all known BCB naming variations)
+  'crédito pessoal consignado público':'Payroll – Public Sector',
+  'empréstimo consignado do setor público':'Payroll – Public Sector',
+  'crédito pessoal consignado para trabalhadores do setor público':'Payroll – Public Sector',
+  'crédito pessoal consignado privado':'Payroll – Private Sector',
+  'empréstimo consignado do setor privado':'Payroll – Private Sector',
+  'crédito pessoal consignado para trabalhadores do setor privado':'Payroll – Private Sector',
+  'crédito pessoal consignado inss':'Payroll – INSS',
+  'empréstimo consignado inss':'Payroll – INSS',
+  'crédito pessoal consignado para trabalhadores beneficiários do inss':'Payroll – INSS',
+  // Personal
+  'crédito pessoal não consignado':'Personal – Non-Payroll',
+  'crédito pessoal não-consignado':'Personal – Non-Payroll',
+  'crédito pessoal não consignado vinculado à renegociação de dívidas':'Personal – Debt Renegotiation',
+  'crédito pessoal não-consignado vinculado à renegociação de dívidas':'Personal – Debt Renegotiation',
+  // Vehicle
+  'aquisição de veículos':'Vehicle Acquisition',
+  'arrendamento mercantil de veículos':'Vehicle Leasing',
+  'aquisição de outros bens':'Other Goods',
+  // Mortgage
+  'financiamento imobiliário com taxas reguladas':'Mortgage – SFH Regulated',
+  'financiamento imobiliário com taxas reguladas direcionado':'Mortgage – SFH Regulated',
+  'financiamento imobiliário com taxas de mercado':'Mortgage – Market Rates',
+  'financiamento imobiliário com taxas de mercado direcionado':'Mortgage – Market Rates',
+  'home equity':'Home Equity',
+};
+const MPJ = {
+  // Working capital — both API naming variants
+  'capital de giro com prazo até 365 dias':'WC ≤ 365d',
+  'capital de giro com prazo de vencimento até 365 dias':'WC ≤ 365d',
+  'capital de giro com prazo superior a 365 dias':'WC > 365d',
+  'capital de giro com prazo de vencimento superior a 365 dias':'WC > 365d',
+  'capital de giro rotativo':'Revolving WC',
+  'capital de giro consolidado':'WC Consolidated',
+  // Other corporate
+  'conta garantida':'Guaranteed Account',
+  'desconto de duplicatas':'Receivables Discounting',
+  'desconto de cheques':'Cheque Discounting',
+  'antecipação de faturas de cartão de crédito':'CC Receivables Advance',
+  'vendor':'Vendor','compror':'Compror','hot money':'Hot Money',
+};
+
+const SECS = [
+  {id:'mort',ic:'🏠',t:'Mortgage Loans',sg:'PF',m:['Mortgage – SFH Regulated','Mortgage – Market Rates','Home Equity']},
+  {id:'card',ic:'💳',t:'Credit Cards & Overdraft',sg:'PF',m:['CC Revolving (Regular)','CC Revolving (Irregular)','CC Revolving (Total)','CC Installment w/ Interest','Overdraft (Cheque Especial)']},
+  {id:'pay',ic:'🧾',t:'Payroll-Linked (Consignado)',sg:'PF',m:['Payroll – Public Sector','Payroll – Private Sector','Payroll – INSS']},
+  {id:'pers',ic:'👤',t:'Personal Loans',sg:'PF',m:['Personal – Non-Payroll','Personal – Debt Renegotiation']},
+  {id:'veh',ic:'🚗',t:'Vehicle Financing',sg:'PF',m:['Vehicle Acquisition','Vehicle Leasing','Other Goods']},
+  {id:'wc',ic:'💼',t:'Working Capital',sg:'PJ',m:['WC ≤ 365d','WC > 365d','Revolving WC','WC Consolidated']},
+  {id:'corp',ic:'📦',t:'Other Corporate',sg:'PJ',m:['Guaranteed Account','Receivables Discounting','Cheque Discounting','CC Receivables Advance','Vendor','Compror','Hot Money']},
+];
+const DEF_MODS = new Set();
+
+// ═══ STATE ═══
+let raw=[], pts=[], aBanks=new Set(DEF_BANKS), aMods=new Set(DEF_MODS), rMode='m', dLog='';
+
+// ═══ UTILS ═══
+function dbg(s){dLog+=s+'\n';document.getElementById('dc').textContent=dLog;console.log('[BCB]',s)}
+function isoD(d){return d.toISOString().slice(0,10)}
+
+// Normalize modality string for matching:
+//  "Cartão de crédito - rotativo total - Prefixado" → "cartão de crédito rotativo total"
+//  "Capital de giro com prazo até 365 dias - Pós-fixado referenciado em juros flutuantes" → "capital de giro com prazo até 365 dias"
+function normMod(s) {
+  s = (s||'').toLowerCase().trim();
+  // Strip rate-type suffix: everything from " - prefixado...", " - pré-fixado...", " - pós-fixado...", " - flutuante..." to end
+  s = s.replace(/\s+-\s+(prefixado|pré-fixado|pré fixado|pós-fixado|pós fixado|posfixado|flutuante).*$/i, '');
+  // Replace remaining " - " separators with space
+  s = s.replace(/\s+-\s+/g, ' ');
+  // Collapse whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+function mBank(n) {
+  const u=(n||'').toUpperCase();
+  for(const[l,a]of Object.entries(BANKS)) for(const x of a) if(u.includes(x.toUpperCase())) return l;
+  return null;
+}
+
+function mMod(modalidade, segmento) {
+  const norm = normMod(modalidade);
+  const seg = (segmento||'').toUpperCase();
+  // Segment-aware match
+  if (seg.includes('FÍSICA') || seg.includes('FISICA')) {
+    if (MPF[norm]) return {en:MPF[norm], sg:'PF'};
+  }
+  if (seg.includes('JURÍDICA') || seg.includes('JURIDICA')) {
+    if (MPJ[norm]) return {en:MPJ[norm], sg:'PJ'};
+  }
+  // Fallback: try both maps
+  if (MPF[norm]) return {en:MPF[norm], sg:'PF'};
+  if (MPJ[norm]) return {en:MPJ[norm], sg:'PJ'};
+  return null;
+}
+
+function mondayOf(d) {
+  const m = new Date(d);
+  m.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  m.setHours(0,0,0,0);
+  return m;
+}
+
+// ═══════════════════════════════════════════
+// FETCH — uses $filter with ISO dates
+// ═══════════════════════════════════════════
+function buildUrl(skip, dateFrom) {
+  // $filter works because InicioPeriodo is now ISO "YYYY-MM-DD" format
+  let url = API + '?%24format=json&%24top=' + PS + '&%24skip=' + skip;
+  if (dateFrom) {
+    url += '&%24filter=' + encodeURIComponent("InicioPeriodo ge '" + dateFrom + "'");
+  }
+  return url;
+}
+
+async function doFetch() {
+  const btn=document.getElementById('fb');
+  btn.disabled=true; btn.textContent='Fetching…';
+  showL(true,'Connecting to BCB…');
+  hideB(); raw=[]; dLog='';
+  dbg('=== Fetch ' + new Date().toISOString() + ' ===');
+
+  const vFrom=document.getElementById('df').value;
+  const vTo=document.getElementById('dt').value;
+  const dTo = vTo ? new Date(vTo+'T23:59:59') : null;
+
+  dbg('Date range: ' + (vFrom||'all') + ' to ' + (vTo||'now'));
+
+  try {
+    let skip=0, pg=0, tot=0;
+    while (pg < MAX_PG) {
+      pg++;
+      const url = buildUrl(skip, vFrom || null);
+      dbg('Page ' + pg + ' skip=' + skip);
+      showL(true, 'Fetching page ' + pg + '… (' + tot.toLocaleString() + ' rows)');
+
+      const resp = await fetch(url);
+      dbg('HTTP ' + resp.status);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+      const json = await resp.json();
+      const rows = json.value || [];
+      dbg('Rows: ' + rows.length);
+
+      if (!rows.length) break;
+      if (tot === 0) {
+        dbg('Fields: ' + Object.keys(rows[0]).join(', '));
+        dbg('Sample: ' + JSON.stringify(rows[0]).substring(0, 350));
+      }
+
+      raw.push(...rows);
+      tot += rows.length;
+      if (rows.length < PS) break;
+      skip += PS;
+    }
+
+    dbg('Total fetched (daily): ' + tot.toLocaleString());
+
+    // Also fetch from MONTHLY endpoint (has mortgage data not in daily)
+    showL(true, 'Fetching monthly data (mortgage)…');
+    try {
+      let mSkip=0, mPg=0, mTot=0;
+      while (mPg < 5) {
+        mPg++;
+        const mUrl = API_MONTHLY + '?%24format=json&%24top=' + PS + '&%24skip=' + mSkip;
+        const mResp = await fetch(mUrl);
+        if (!mResp.ok) break;
+        const mJson = await mResp.json();
+        const mRows = mJson.value || [];
+        if (!mRows.length) break;
+        // Normalize monthly rows to match daily row structure
+        for (const mr of mRows) {
+          const ym = mr.anoMes || ''; // "2025-12"
+          const isoPeriod = ym ? ym + '-01' : '';
+          // Date filter
+          if (vFrom && isoPeriod < vFrom) continue;
+          if (vTo && isoPeriod > vTo) continue;
+          raw.push({
+            InicioPeriodo: isoPeriod,
+            Segmento: 'PESSOA FÍSICA', // mortgage is PF
+            Modalidade: mr.Modalidade,
+            InstituicaoFinanceira: mr.InstituicaoFinanceira,
+            TaxaJurosAoMes: mr.TaxaJurosAoMes,
+            TaxaJurosAoAno: mr.TaxaJurosAoAno,
+            _src: 'monthly'
+          });
+          mTot++;
+        }
+        if (mRows.length < PS) break;
+        mSkip += PS;
+      }
+      dbg('Monthly rows added: ' + mTot);
+      tot += mTot;
+    } catch(me) { dbg('Monthly fetch error (non-fatal): ' + me.message); }
+
+    if (!tot) {
+      showE('No data returned. If opened via file://, host on a local server or GitHub Pages.');
+      showL(false); btn.disabled=false; btn.textContent='Fetch Data'; return;
+    }
+
+    showL(true, 'Processing ' + tot.toLocaleString() + ' rows…');
+    await new Promise(r=>setTimeout(r,30));
+
+    // Client-side date ceiling filter (API $filter handles the floor)
+    if (dTo) {
+      const b = raw.length;
+      raw = raw.filter(r => {
+        const d = new Date(r.InicioPeriodo);
+        return !isNaN(d) && d <= dTo;
+      });
+      dbg('Date ceiling filter: ' + b + ' → ' + raw.length);
+    }
+
+    // Enrich
+    const mBanks=new Set(), mMods2=new Set(), unM=new Set();
+    raw.forEach(r => {
+      r._bk = mBank(r.InstituicaoFinanceira);
+      const mm = mMod(r.Modalidade, r.Segmento);
+      r._mod = mm ? mm.en : null;
+      r._sg = mm ? mm.sg : null;
+      if (r._bk) mBanks.add(r._bk);
+      if (r._mod) mMods2.add(r._mod);
+      else if (r.Modalidade) unM.add(normMod(r.Modalidade));
+    });
+    dbg('Banks matched: ' + [...mBanks].sort().join(', '));
+    dbg('Modalities matched (' + mMods2.size + '): ' + [...mMods2].sort().join(', '));
+    if (unM.size) dbg('Unmatched normalized (' + unM.size + '): ' + [...unM].slice(0, 10).join(' | '));
+
+    // Weekly aggregation
+    const map = {};
+    raw.filter(r => r._bk && r._mod).forEach(r => {
+      const d = new Date(r.InicioPeriodo);
+      if (isNaN(d)) return;
+      const wk = isoD(mondayOf(d));
+      const k = wk + '|' + r._bk + '|' + r._mod;
+      if (!map[k]) map[k] = {wk, bk:r._bk, mod:r._mod, sg:r._sg, sm:0, sa:0, n:0};
+      map[k].sm += (r.TaxaJurosAoMes||0);
+      map[k].sa += (r.TaxaJurosAoAno||0);
+      map[k].n++;
+    });
+    pts = Object.values(map).map(v=>({wk:v.wk,bk:v.bk,mod:v.mod,sg:v.sg,rm:v.sm/v.n,ra:v.sa/v.n})).sort((a,b)=>a.wk.localeCompare(b.wk));
+    dbg('Weekly points: ' + pts.length);
+
+    const weeks = new Set(pts.map(d=>d.wk));
+    document.getElementById('s1').textContent = mBanks.size;
+    document.getElementById('s2').textContent = mMods2.size;
+    document.getElementById('s3').textContent = pts.length.toLocaleString();
+    document.getElementById('s4').textContent = weeks.size;
+
+    updModAvail(mMods2);
+    showS('Loaded ' + tot.toLocaleString() + ' rows → ' + pts.length.toLocaleString() + ' weekly points, ' + weeks.size + ' weeks.');
+    renderAll();
+  } catch(e) {
+    dbg('ERROR: ' + e.message);
+    if (/fetch|network|load failed/i.test(e.message)) showE('Network error. Host on a local server or GitHub Pages if using file://.');
+    else showE('Error: ' + e.message);
+  }
+
+  showL(false); btn.disabled=false; btn.textContent='Fetch Data';
+}
+
+// ═══ RENDER ═══
+function renderAll(){renderCharts();renderRaw()}
+
+function renderCharts(){
+  const c=document.getElementById('cc'); c.innerHTML='';
+  if(!aMods.size){c.innerHTML='<div class="empty"><div class="ic">📊</div><div class="ms">Select credit lines in the sidebar.</div></div>';return}
+  let any=false;
+  for(const sec of SECS){
+    const sm=sec.m.filter(m=>aMods.has(m)); if(!sm.length)continue;
+    const hdr=document.createElement('div'); hdr.className='shdr';
+    if(any)hdr.style.marginTop='22px';
+    hdr.innerHTML='<span>'+sec.ic+' '+sec.t+' ('+sec.sg+')</span>';
+    const xb=document.createElement('button');xb.className='xbtn';xb.textContent='📥 Export Section';
+    xb.onclick=()=>{xExcel(pts.filter(p=>sm.includes(p.mod)&&aBanks.has(p.bk)),sec.t.replace(/\W+/g,'_'))};
+    hdr.appendChild(xb); c.appendChild(hdr);
+    const g=document.createElement('div');g.className='cg';
+    for(const mod of sm){mkCard(g,mod,pts.some(p=>p.mod===mod&&aBanks.has(p.bk)))}
+    c.appendChild(g); any=true;
+  }
+  if(!any)c.innerHTML='<div class="empty"><div class="ic">📊</div><div class="ms">No data for selected credit lines and banks.</div></div>';
+  // Apply column setting
+  document.querySelectorAll('.cg').forEach(g=>{g.style.gridTemplateColumns='repeat('+curCols+',1fr)'});
+}
+
+function mkCard(par,mod,has){
+  const card=document.createElement('div');card.className='cc';
+  const hdr=document.createElement('div');hdr.className='cch';
+  const t=document.createElement('span');t.className='t';t.textContent=mod;
+  const xb=document.createElement('button');xb.className='xb';xb.textContent='📥 Excel';
+  xb.onclick=()=>{xExcel(pts.filter(p=>p.mod===mod&&aBanks.has(p.bk)),mod.replace(/\W+/g,'_'))};
+  hdr.appendChild(t);hdr.appendChild(xb);card.appendChild(hdr);
+  const d=document.createElement('div');d.className='cd';d.style.width='100%';card.appendChild(d);par.appendChild(card);
+  cardRO.observe(card);
+  if(!has){d.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:11px">No data for selected banks</div>';return}
+  plot(d,mod);
+}
+
+function plot(div,mod){
+  const data=pts.filter(p=>p.mod===mod&&aBanks.has(p.bk));
+  const banks=[...new Set(data.map(d=>d.bk))].sort();
+  const isA=rMode==='a', sfx=isA?'% p.a.':'% p.m.';
+  const traces=banks.map((bk,i)=>{
+    const bd=data.filter(d=>d.bk===bk).sort((a,b)=>a.wk.localeCompare(b.wk));
+    const clr = BANK_COLORS[bk] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+    return{x:bd.map(d=>d.wk),y:bd.map(d=>isA?d.ra:d.rm),name:bk,mode:'lines+markers',
+      line:{width:2.2,color:clr},marker:{size:4},
+      hovertemplate:'<b>'+bk+'</b><br>%{x|%b %d, %Y}<br>'+sfx+': %{y:.2f}%<extra></extra>'};
+  });
+  Plotly.newPlot(div,traces,{
+    autosize:true,
+    paper_bgcolor:'#FFFFFF',plot_bgcolor:'#FFFFFF',font:{color:'#5A6270',size:10,family:'Inter'},
+    margin:{l:48,r:6,t:24,b:30},legend:{orientation:'h',y:1.01,yanchor:'bottom',font:{size:8}},hovermode:'x unified',
+    xaxis:{gridcolor:'#E8EAED',linecolor:'#D8DBE0',tickfont:{size:8},tickangle:-35,dtick:14*86400000,tickformat:'%d %b %y'},
+    yaxis:{ticksuffix:'%',gridcolor:'#E8EAED',linecolor:'#D8DBE0',tickfont:{size:8},automargin:true},
+  },{responsive:true,displayModeBar:false});
+}
+
+// ═══ RAW TABLE ═══
+function renderRaw(){
+  const f=raw.filter(r=>r._bk&&aBanks.has(r._bk)&&r._mod&&aMods.has(r._mod));
+  const s=f.slice(0,2000);
+  let h='<table class="rtbl"><thead><tr><th>Date</th><th>Bank</th><th>Credit Line</th><th>Seg</th><th>% p.m.</th><th>% p.a.</th><th>Institution</th></tr></thead><tbody>';
+  for(const r of s) h+='<tr><td>'+(r.InicioPeriodo||'')+'</td><td>'+r._bk+'</td><td>'+r._mod+'</td><td>'+(r._sg||'')+'</td><td>'+(r.TaxaJurosAoMes||0).toFixed(2)+'</td><td>'+(r.TaxaJurosAoAno||0).toFixed(2)+'</td><td style="font-size:9px;color:var(--text-muted)">'+(r.InstituicaoFinanceira||'')+'</td></tr>';
+  h+='</tbody></table>';
+  if(f.length>2000)h+='<div style="padding:7px;font-size:10px;color:var(--text-muted)">Showing 2,000 of '+f.length.toLocaleString()+'. Export for full data.</div>';
+  document.getElementById('rw').innerHTML=h;
+}
+function fRaw(){const q=document.getElementById('rs').value.toLowerCase();document.querySelectorAll('#rw table.rtbl tbody tr').forEach(tr=>{tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none'})}
+
+// ═══ EXCEL ═══
+function xExcel(data,fn){
+  const isA = rMode==='a';
+  // Group by modality, then pivot: dates as rows, banks as columns
+  const mods = [...new Set(data.map(d=>d.mod))].sort();
+  const wb = XLSX.utils.book_new();
+  for (const mod of mods) {
+    const md = data.filter(d=>d.mod===mod);
+    const banks = [...new Set(md.map(d=>d.bk))].sort();
+    const weeks = [...new Set(md.map(d=>d.wk))].sort();
+    const lookup = {};
+    md.forEach(d => { lookup[d.wk+'|'+d.bk] = isA ? d.ra : d.rm; });
+    const rows = weeks.map(wk => {
+      const row = {Date: wk};
+      banks.forEach(bk => { row[bk] = lookup[wk+'|'+bk] != null ? +lookup[wk+'|'+bk].toFixed(4) : ''; });
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const sn = mod.replace(/[^\w\s–]/g,'').substring(0,31);
+    XLSX.utils.book_append_sheet(wb, ws, sn);
+  }
+  XLSX.writeFile(wb, (fn||'bcb')+'.xlsx');
+}
+function xRawAll(){
+  const f = pts.filter(p=>aBanks.has(p.bk)&&aMods.has(p.mod));
+  xExcel(f, 'bcb_all');
+}
+
+// ═══ SIDEBAR ═══
+function initChips(){
+  const c=document.getElementById('bk');c.innerHTML='';
+  for(const n of Object.keys(BANKS)){
+    const ch=document.createElement('span');ch.className='chip'+(aBanks.has(n)?' on':'');ch.textContent=n;
+    ch.onclick=()=>{if(aBanks.has(n)){aBanks.delete(n);ch.classList.remove('on')}else{aBanks.add(n);ch.classList.add('on')};if(pts.length)renderAll()};
+    c.appendChild(ch);
+  }
+}
+function buildMods(){
+  const c=document.getElementById('ml');c.innerHTML='';
+  for(const sec of SECS){
+    const g=document.createElement('div');g.className='mg';
+    const hdr=document.createElement('div');hdr.className='mg-h';
+    const arr=document.createElement('span');arr.className='a';arr.textContent='▸';
+    const cnt=document.createElement('span');cnt.className='mc';cnt.id='mc-'+sec.id;
+    const n=sec.m.filter(m=>aMods.has(m)).length;cnt.textContent=n+'/'+sec.m.length;
+    hdr.appendChild(arr);hdr.appendChild(document.createTextNode(' '+sec.ic+' '+sec.t+' '));hdr.appendChild(cnt);
+    const body=document.createElement('div');body.className='mg-b';
+    if(n>0){body.classList.add('o');arr.classList.add('o')}
+    hdr.onclick=()=>{body.classList.toggle('o');arr.classList.toggle('o')};
+    for(const mod of sec.m){
+      const it=document.createElement('label');it.className='mi'+(aMods.has(mod)?' on':'');it.dataset.mod=mod;
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=aMods.has(mod);
+      cb.onchange=()=>{if(cb.checked){aMods.add(mod);it.classList.add('on')}else{aMods.delete(mod);it.classList.remove('on')};updCnt(sec);if(pts.length)renderAll()};
+      it.appendChild(cb);it.appendChild(document.createTextNode(' '+mod));body.appendChild(it);
+    }
+    g.appendChild(hdr);g.appendChild(body);c.appendChild(g);
+  }
+}
+function updCnt(s){const e=document.getElementById('mc-'+s.id);if(e)e.textContent=s.m.filter(m=>aMods.has(m)).length+'/'+s.m.length}
+function updModAvail(ms){document.querySelectorAll('.mi').forEach(e=>{const m=e.dataset.mod;e.style.opacity=m&&!ms.has(m)?'0.35':'1'})}
+function modNone(){aMods.clear();document.querySelectorAll('.mi input').forEach(c=>c.checked=false);document.querySelectorAll('.mi').forEach(e=>e.classList.remove('on'));SECS.forEach(updCnt);if(pts.length)renderAll()}
+function modDef(){aMods=new Set(DEF_MODS);document.querySelectorAll('.mi').forEach(e=>{const m=e.dataset.mod,cb=e.querySelector('input'),on=aMods.has(m);cb.checked=on;e.classList.toggle('on',on)});SECS.forEach(updCnt);if(pts.length)renderAll()}
+
+let curCols=2;
+function setCols(n){
+  curCols=n;
+  document.querySelectorAll('[data-c]').forEach(b=>b.classList.toggle('on',+b.dataset.c===n));
+  document.querySelectorAll('.cg').forEach(g=>{g.style.gridTemplateColumns='repeat('+n+',1fr)'});
+  setTimeout(resizeAllPlots, 50);
+}
+function resizeAllPlots(){
+  document.querySelectorAll('.cd').forEach(cd=>{
+    const p=cd.querySelector('.js-plotly-plot');
+    if(p) Plotly.Plots.resize(p);
+  });
+}
+// Per-card ResizeObserver: resize Plotly as card is dragged
+const cardRO = new ResizeObserver(entries => {
+  for(const e of entries){
+    const cd = e.target.querySelector('.cd');
+    if(!cd) continue;
+    const p = cd.querySelector('.js-plotly-plot');
+    if(p) Plotly.Plots.resize(p);
+  }
+});
+function setR(m){rMode=m;document.querySelectorAll('.rb[data-r]').forEach(b=>b.classList.toggle('on',b.dataset.r===m));if(pts.length)renderAll()}
+function stab(id){document.querySelectorAll('.tbtn').forEach(b=>b.classList.toggle('on',b.dataset.t===id));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id))}
+
+function showL(v,m){if(m)document.getElementById('lm').textContent=m;document.getElementById('lo').classList.toggle('vis',v)}
+function hideB(){document.getElementById('eb').classList.remove('vis');document.getElementById('sb').classList.remove('vis')}
+function showE(m){document.getElementById('em').textContent=m;document.getElementById('eb').classList.add('vis')}
+function showS(m){document.getElementById('sm').textContent=m;document.getElementById('sb').classList.add('vis');setTimeout(()=>document.getElementById('sb').classList.remove('vis'),8000)}
+
+// ═══ INIT ═══
+(function(){
+  const now=new Date(), ago=new Date(now);
+  ago.setMonth(now.getMonth()-6); // 6 months default — ~26 weekly data points
+  document.getElementById('dt').value=isoD(now);
+  document.getElementById('df').value=isoD(ago);
+  initChips(); buildMods();
+  setTimeout(()=>doFetch(),150);
+})();
+</script>
+</body>
+</html>
